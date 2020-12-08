@@ -1,0 +1,56 @@
+Metadata-Version: 2.1
+Name: meocloud
+Version: 0.0.2
+Summary: unofficial meocloud package
+Home-page: https://github.com/IgorDantasID/meocloud
+Author: Igor Dantas de Aguiar
+Author-email: igordantas91@icloud.com
+License: MIT
+Description: # MEOCLOUD
+        UNOFFICIAL MEOCLOUD PACKAGE
+        
+        ## Install
+        
+        Use **pip** to install the latest stable version of `meocloud`:
+        
+        ```
+        $ pip install meocloud
+        ```
+        ## Create a credential
+        Before, create a new app in https://meocloud.pt/my_apps, then:
+        ```
+        meocloud mycredential
+        ```
+        
+        ## Use mode
+        ```python
+        from meocloud.services import MeoCloud
+        
+        consumer_key='***'
+        consumer_secret='***'
+        oauth_token='***'
+        oauth_token_secret='***'
+        meo = MeoCloud(consumer_key=consumer_key, consumer_secret=consumer_secret, oauth_token=oauth_token, oauth_token_secret=oauth_token_secret)
+        print(meo.get_list('/'))
+        ```
+        
+        ## Use with `requests` package
+        before you need run `pip install requests`
+        ```python
+        import requests
+        from meocloud.services import MeoCloud
+        
+        meo = MeoCloud(consumer_key=consumer_key, consumer_secret=consumer_secret, oauth_token=oauth_token, oauth_token_secret=oauth_token_secret)
+        auth = meo.auth_in_request()
+        url = f'https://api.meocloud.pt/1/List/meocloud('
+        r = requests.get(url=url, auth=auth)
+        r.content
+        ```
+        
+        If you have questions, send them to igordantas91@icloud.com
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
