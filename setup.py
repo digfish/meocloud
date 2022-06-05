@@ -4,16 +4,16 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="meocloud",
-    version="0.0.2",
-    author="Igor Dantas de Aguiar",
-    author_email="igordantas91@icloud.com",
-    description="unofficial meocloud package",
+    name="meocloud-repl",
+    version="0.0.1",
+    author="Rui Rascasso",
+    author_email="rascasso@digfish.org",
+    description="A REPL tool for Meo Cloud",
     long_description=long_description,
     long_description_content_type="text/markdown",
     license='MIT',
-    url="https://github.com/IgorDantasID/meocloud",
-    packages=find_packages(exclude=['tests*']),
+    url="https://github.com/digfish/meocloud",
+    packages=find_packages(exclude=['tests*','my_tests*']),
     install_requires=[
         'click>=7.1.2',
         'requests>=2.25.0',
@@ -22,6 +22,7 @@ setup(
     entry_points={
         'console_scripts': [
             'meocloud = meocloud.cli:main',
+            'meocloudrepl = meocloud.repl:main'
         ],
     },
     classifiers=[

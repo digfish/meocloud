@@ -1,3 +1,12 @@
 /my_tests
 /tests
 /dist
+/__pycache__
+/.idea
+/.vscode
+.env*
+faked.txt
+/build/lib/*
+__pycache__
+*.egg-info/*
+

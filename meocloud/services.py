@@ -1,3 +1,5 @@
+import os
+from posixpath import basename
 import requests
 from requests_oauthlib import OAuth1
 from urllib.parse import parse_qsl, urlencode
@@ -15,23 +17,74 @@ class MeoCloud(object):
         self.oauth_token = oauth_token
         self.oauth_token_secret = oauth_token_secret
         self.pin = pin
-    
+        self.session = requests.Session()
+        self.session.auth = self.auth_in_request()
+
+    def auth_in_request(self):
+        return OAuth1(self.consumer_key,
+                      client_secret=self.consumer_secret,
+                      resource_owner_key=self.oauth_token,
+                      resource_owner_secret=self.oauth_token_secret)
+
+
     def get_list(self, path='/'):
         if path == '':
             path = '/'
-        oauth = OAuth1(self.consumer_key,
-                   client_secret=self.consumer_secret,
-                   resource_owner_key=self.oauth_token,
-                   resource_owner_secret=self.oauth_token_secret)
         url = f'https://api.meocloud.pt/1/List/meocloud{path}'
-        r = requests.get(url=url, auth=oauth)
-        return r.content
+        r = self.session.get(url=url)
+        return r
     
-    def auth_in_request(self):
-        return OAuth1(self.consumer_key,
-                   client_secret=self.consumer_secret,
-                   resource_owner_key=self.oauth_token,
-                   resource_owner_secret=self.oauth_token_secret)
+    def get_file(self,file):
+        url = f'https://api-content.meocloud.pt/1/Files/meocloud/{file}'
+        r = self.session.get(url=url)
+        return r
+
+    def upload_file(self,lfile,rpath=''):
+        return self.upload_data(f"{rpath}/{lfile}",open(lfile,'rb').read())
+
+    def upload_data(self,path='',data=''):
+        url = f'https://api-content.meocloud.pt/1/Files/meocloud{path}'
+        print(f"Uploading to {url}")
+        r = self.session.put(url=url,data=data)
+        return r
+
+    def delete_file(self,path):
+        url = 'https://api.meocloud.pt/1/Fileops/Delete'
+        r = self.session.post(url=url,data={'root':'meocloud','path': f"{path}"})
+        return r
+
+    def properties(self,path):
+        url = f'https://api.meocloud.pt/1/Metadata/meocloud{path}'
+        r = self.session.get(url=url)
+        return r
+
+    def account_data(self):
+        url = 'https://api.meocloud.pt/1/Account/Info'
+        r = self.session.get(url)
+        return r
+
+    def user_last_events(self):
+        url = 'https://api.meocloud.pt/1/ListEvents'
+        r = self.session.get(url)
+        return r
+
+    def schedule_download_remote(self,_url,name=''):
+        if len(name.strip()) == 0:
+            name = basename(_url)
+        print(f"Downloading to {name}")
+        url = f'https://api-content.meocloud.pt/1/SaveUrl/meocloud/{name}'
+        r = self.session.post(url=url,data={'root':'meocloud','url':_url})
+        return r
+    
+    def pending_remote_download_status(self,job_id):
+        url = f'https://api-content.meocloud.pt/1/SaveUrlJob/{job_id}'
+        r = self.session.get(url=url)
+        return r
+
+    def mkdir(self,newdirname):
+        url = 'https://api.meocloud.pt/1/Fileops/CreateFolder'
+        r = self.session.post(url=url,data={'root':'meocloud','path': f"/{newdirname}"})
+        return r
 
     @property
     def authorize(self):

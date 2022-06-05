@@ -40,3 +40,39 @@ r.content
 ```
 
 If you have questions, send them to igordantas91@icloud.com
+
+# IMPROVEMENTS AND IMPLEMENTATIONS (REPL)
+The improvements made by [digfish](https://github.com/digfish) were: storing the received credentials in a [.env](https://zetcode.com/javascript/dotenv/) and a [REPL](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop) for the most basic commands: like retrieving files, upload them, delete and list, in the likeness of the [FTP command](https://manpages.org/ftp
+).
+To call the REPL type:
+ ```
+    > meocloudrepl
+    Welcome to meo cloud repl!
+    Enter Press Tab to see commands
+    help <cmd> or ?<cmd> for description
+    ^D or exit to quit
+    meocloud [/]>
+```
+The following commands are implemented:
+- cat
+- exit
+- help
+- lls
+- mkdir
+- properties
+- pwd
+- rcd
+- rup
+- del
+- get
+- lcd
+- lup
+- mls
+- put
+- rcat
+- rls
+
+To know the meaning of each one, write `help <cmd>` .
+
+Comments and improvements: sam@digfish.org
+
