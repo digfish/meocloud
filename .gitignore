@@ -10,3 +10,5 @@ faked.txt
 __pycache__
 *.egg-info/*
 
+/meocloud.ini
+/essayrepl.py

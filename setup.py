@@ -18,6 +18,7 @@ setup(
         'click>=7.1.2',
         'requests>=2.25.0',
         'requests-oauthlib>=1.3.0',
+        'pyreadline3>=3.4.1'
     ],
     entry_points={
         'console_scripts': [

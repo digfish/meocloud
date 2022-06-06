@@ -7,8 +7,10 @@ name = "pypi"
 requests = "*"
 requests-oauthlib = "*"
 click = "*"
+pyreadline3 = '*'
 
 [dev-packages]
+python-dotenv = '*'
 
 [requires]
 python_version = "3.8"
