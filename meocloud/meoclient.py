@@ -1,17 +1,19 @@
+import configparser
+
 from meocloud.services import MeoCloud
 import pprint
 import os,sys
-import dotenv
+import configparser
 
 def get_meo_client():
-    dotenv.load_dotenv()
+    config = configparser.ConfigParser()
+    config.read(os.path.expanduser('~')+'/meocloud.ini')
+    app_config = config['DEFAULT']
     return MeoCloud(
-        consumer_key = os.getenv('CONSUMER_KEY'),
-        consumer_secret=os.getenv('CONSUMER_SECRET'),
-        oauth_token=os.getenv('OAUTH_TOKEN'),
-        oauth_token_secret=os.getenv(
-            'OAUTH_TOKEN_SECRET'
-        )
+        consumer_key = app_config['CONSUMER_KEY'],
+        consumer_secret=app_config['CONSUMER_SECRET'],
+        oauth_token=app_config['OAUTH_TOKEN'],
+        oauth_token_secret=app_config['OAUTH_TOKEN_SECRET']
     )
 
 

@@ -3,7 +3,6 @@ from posixpath import basename
 import requests
 from requests_oauthlib import OAuth1
 from urllib.parse import parse_qsl, urlencode
-import json
 
 class MeoCloud(object):
     REQUEST_TOKEN = 'https://meocloud.pt/oauth/request_token'
@@ -123,10 +122,10 @@ class MeoCloud(object):
     def consumer_key(self):
         return self._consumer_key
 
-    @consumer_key.setter
+
     def consumer_key(self, item):
         if item is None:
-            self._consumer_key = os.environ['CONSUMER_KEY', None]
+            self._consumer_key = os.environ['CONSUMER_KEY',None]
         else:
             self._consumer_key = item
 
@@ -134,9 +133,9 @@ class MeoCloud(object):
     def consumer_secret(self):
         return self._consumer_secret
 
-    @consumer_secret.setter
+
     def consumer_secret(self, item):
         if item is None:
-            self._consumer_secret = os.environ['CONSUMER_SECRET', None]
+            self._consumer_secret = os.environ['CONSUMER_SECRET',None]
         else:
             self._consumer_secret = item

@@ -1,8 +1,8 @@
 import os, sys
 import cmd
 
-from meoclient import *
-from services import *
+from .meoclient import *
+from .services import *
 
 class MeoCloudRepl(cmd.Cmd):
 
