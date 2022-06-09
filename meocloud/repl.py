@@ -1,5 +1,6 @@
 import os, sys
 import cmd
+import argparse
 
 from .meoclient import *
 from .services import *
@@ -14,6 +15,17 @@ class MeoCloudRepl(cmd.Cmd):
     prompt = f'meocloud [{rcwd}]> '
     meo = get_meo_client()
     cwd = os.getcwd()
+
+    args_usage = \
+    """ 
+        rls <dir>       list remote dir <dir>
+        mls <dir>       idem
+        put <file>      save the file in remote dir
+        get <file>      downloads the file locate in remote dir
+        del <path>      deletes the remote path
+        mkdir <dir>     creates the remote dir
+        md <file>       metadata of remote file
+    """        
 
     def _rcwd_to_rpath(self,path):
         rpath = f"{self.rcwd}/{path}"
@@ -43,7 +55,13 @@ class MeoCloudRepl(cmd.Cmd):
 
     def do_mls(self,args):
         files = None
-        r = self.meo.get_list(self._rcwd_to_rpath(args))
+        #r = self.meo.get_list(self._rcwd_to_rpath(args))
+        if len(args.strip()) == 0:
+            args = self.rcwd
+        if args.startswith('/'):
+            args = args[1:]
+        print("Listing %s"%args)
+        r = self.meo.get_list(args)
         if r.status_code != 200:
             print(f"Something got wrong: status {r.status_code}")
             return
@@ -79,14 +97,24 @@ class MeoCloudRepl(cmd.Cmd):
         if len(args) == 0:
             print(self.rcwd)
             return
-        self.rcwd = self._rcwd_to_rpath(args)
+        if self.rcwd != '/' and args != '/':
+            self.rcwd = self.rcwd + '/' + args
+        elif args == '/':
+            print("Going to /")
+            self.rcwd = '/'
+#        self.rcwd = self._rcwd_to_rpath(args)
 
     def help_rcd(self):
         print("Changes the current directory on the remote side")
 
     def do_rup(self,args):
-        self.rcwd =  self.rcwd[0:self.rcwd.rfind('/')+1]
-
+        #self.rcwd =  self.rcwd[0:self.rcwd.rfind('/')+1]
+        last_slash = self.rcwd.rfind('/')
+        if last_slash == -1:
+            self.rcwd = '/'
+        else:
+            self.rcwd =  self.rcwd[0:last_slash]
+    
     def help_rup(self):
         print("Goes one level up in the dirtree")
 
@@ -99,7 +127,8 @@ class MeoCloudRepl(cmd.Cmd):
         print("Change the local directory up one level")
 
     def do_get(self,args):
-        r = self.meo.get_file(self._rcwd_to_rpath(args))
+        r = self.meo.get_file(args)
+        #r = self.meo.get_file(self._rcwd_to_rpath(args))
         print(f"Saving to {args}")
         with open(args,'wb') as downloaded_file:
             downloaded_file.write(r.content)
@@ -109,7 +138,12 @@ class MeoCloudRepl(cmd.Cmd):
         print("Downloads a file")
 
     def do_put(self,args):
-        r = self.meo.upload_data(self._rcwd_to_rpath(args), open(args, 'rb').read())
+        if self.rcwd != '/':
+            rpath = f"{self.rcwd}/{args}"
+        else:
+            rpath = args
+        r = self.meo.upload_data(rpath, open(args, 'rb').read())
+        #r = self.meo.upload_data(self._rcwd_to_rpath(args), open(args, 'rb').read())
         if r.status_code != 200:
             print(f"Something unexpected occurred: {r.status_code}")
             return
@@ -123,7 +157,15 @@ class MeoCloudRepl(cmd.Cmd):
 
     def _complete_remote(self,text,line,begidx, endidx):
         files = None
-        r = self.meo.get_list(self.rcwd)
+        print(f"Current dir: {self.rcwd}")
+        args = self.rcwd
+        if args.startswith('/'):
+            args = args[1:]
+        elif len(args)>1 : args = f"/{args}"
+        r = self.meo.get_list(args)
+        if r.status_code != 200:
+            print("Something got wrong!")
+            return
         files = r.json()['contents']
         return [f for f in map(lambda f:f['name'][1:],files) if f.startswith(text)]
 
@@ -139,7 +181,8 @@ class MeoCloudRepl(cmd.Cmd):
         print("Shows the first 1024 bytes of a local file")
 
     def do_del(self,args):
-        r = self.meo.delete_file(self._rcwd_to_rpath(args))
+        #r = self.meo.delete_file(self._rcwd_to_rpath(args))
+        r = self.meo.delete_file(args)
         json_pprint(r.json())
 
     def complete_del(self,text,line,begidx, endidx):
@@ -158,7 +201,10 @@ class MeoCloudRepl(cmd.Cmd):
         print("Exits the REPL!")
 
     def do_mkdir(self,args):
-        newpathdir = args
+        if self.rcwd != '/':
+            newpathdir = f"{self.rcwd}/{args}"
+        else:
+            newpathdir = args
         print(f"Creating {newpathdir}")
         r = self.meo.mkdir(newpathdir)
         json_pprint(r.json())
@@ -167,7 +213,8 @@ class MeoCloudRepl(cmd.Cmd):
         print("Creates a new directory")
 
     def do_properties(self,args):
-        r = self.meo.properties(self._rcwd_to_rpath(args))
+        #r = self.meo.properties(self._rcwd_to_rpath(args))
+        r = self.meo.properties(args)
         json_pprint(r.json())
 
     def help_properties(self):
@@ -178,7 +225,8 @@ class MeoCloudRepl(cmd.Cmd):
 
 
     def do_rcat(self,args):
-        r = self.meo.get_file(self._rcwd_to_rpath(args))
+        #r = self.meo.get_file(self._rcwd_to_rpath(args))
+        r = self.meo.get_file(args)
         print(r.text[:256])
 
     def help_rcat(self):
@@ -215,7 +263,43 @@ class MeoCloudRepl(cmd.Cmd):
 
 
 def main():
-    MeoCloudRepl().cmdloop()
+    description = 'manages your meocloud service'
+    epilog = "With no arguments the repl is launched \n " + \
+     "The following commands are availabe as arguments:\n" + MeoCloudRepl.args_usage
+    parser = argparse.ArgumentParser(description=description,
+        epilog=epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('command',help='command to execute')
+    parser.add_argument('command_value',help='Value of the command',nargs='?')
+    if len(sys.argv) == 1:
+        MeoCloudRepl().cmdloop()
+    else:
+        args = parser.parse_args()
+        command = args.command
+        print(command)
+        allowed_commands = ['mls','rls','put','del','mkdir','get','md']
+        repl = MeoCloudRepl()
+        if  command not in allowed_commands:
+            print(f"ERROR: '{command}' is not one of the valid commands:\n%s" % " ".join(allowed_commands) )
+            print(repl.args_usage())
+        if args.command_value is not None:
+            command_value = args.command_value
+        else: command_value = None
+        if command in ['rls','mls']:
+            if command_value is not None:
+                repl.do_mls(command_value)
+            else: repl.do_mls('/')
+        elif command == 'md':
+            repl.do_properties(command_value)
+        elif command == 'get':
+            repl.do_get(command_value)
+        elif command == 'put':
+            repl.do_put(command_value)
+        elif command == 'del':
+            repl.do_del(command_value)
+        elif command == 'mkdir':
+            repl.do_mkdir(command_value)
+  
 
 if __name__ == '__main__':
     main()

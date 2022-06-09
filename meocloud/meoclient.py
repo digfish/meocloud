@@ -8,7 +8,10 @@ import configparser
 
 def get_meo_client():
     config = configparser.ConfigParser()
-    config.read(os.path.expanduser('~')+'/meocloud.ini')
+    if os.path.exists('meocloud.ini'):
+        config.read('meocloud.ini')
+    else:
+        config.read(os.path.expanduser('~')+'/meocloud.ini')
     app_config = config['DEFAULT']
     return MeoCloud(
         consumer_key = app_config['CONSUMER_KEY'],

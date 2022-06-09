@@ -1,4 +1,3 @@
-from turtle import dot
 import click
 from meocloud.services import MeoCloud
 import webbrowser

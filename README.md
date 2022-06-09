@@ -42,8 +42,7 @@ r.content
 If you have questions, send them to igordantas91@icloud.com
 
 # IMPROVEMENTS AND IMPLEMENTATIONS (REPL)
-The improvements made by [digfish](https://github.com/digfish) were: storing the received credentials in a [.env](https://zetcode.com/javascript/dotenv/) and a [REPL](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop) for the most basic commands: like retrieving files, upload them, delete and list, in the likeness of the [FTP command](https://manpages.org/ftp
-).
+The improvements made by [digfish](https://github.com/digfish) were: storing the received credentials in a [.env](https://zetcode.com/javascript/dotenv/) and a [REPL](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop) for the most basic commands: like retrieving files, upload them, delete and list, in the likeness of the [FTP command](https://manpages.org/ftp).
 To call the REPL type:
  ```
     > meocloudrepl
@@ -73,6 +72,19 @@ The following commands are implemented:
 - rls
 
 To know the meaning of each one, write `help <cmd>` .
+
+In alternative to the REPL you can provide arguments in the command line, the following commands are available:
+
+```
+        rls <dir>       list remote dir <dir>
+        mls <dir>       idem
+        put <file>      save the file in remote dir
+        get <file>      downloads the file locate in remote dir
+        del <path>      deletes the remote path
+        mkdir <dir>     creates the remote dir
+        md <file>       metadata of remote file
+```
+for example `meocloudrepl rls /` will list the contents of the remote dir
 
 Comments and improvements: sam@digfish.org
 
