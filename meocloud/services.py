@@ -47,6 +47,19 @@ class MeoCloud(object):
         r = self.session.put(url=url,data=data)
         return r
 
+    def _chunk_upload(self,data='',offset=0,upload_id=''):
+        url = f'{self.MEOCLOUD_CONTENT_ENDPOINT}/ChunkedUpload'
+        if offset == 0 or len(upload_id) == 0:
+            r = self.session.put(url=url,data=data)
+        else:
+            r = self.session.put(url=url,data=data,params={'offset':offset,'upload_id':upload_id})
+        return r
+
+    def _chunk_upload_commit(self,rpath,upload_id):
+        url = f'{self.MEOCLOUD_CONTENT_ENDPOINT}/CommitChunkedUpload/meocloud/{rpath}'
+        r = self.session.post(url=url,data={'upload_id':upload_id,'overwrite':True})
+        return r
+
     def delete_file(self,path):
         url = f'{self.MEOCLOUD_ENDPOINT}/Fileops/Delete'
         r = self.session.post(url=url,data={'root':'meocloud','path': f"/{path}"})
@@ -56,6 +69,7 @@ class MeoCloud(object):
         url = f'{self.MEOCLOUD_ENDPOINT}/Metadata/meocloud/{path}'
         r = self.session.get(url=url)
         return r
+
 
     def account_data(self):
         url = f'{self.MEOCLOUD_ENDPOINT}/Account/Info'
@@ -83,6 +97,12 @@ class MeoCloud(object):
         url = f'{self.MEOCLOUD_ENDPOINT}/Fileops/CreateFolder'
         r = self.session.post(url=url,data={'root':'meocloud','path': f"/{newdirname}"})
         return r
+
+    def get_media_url(self,rpath):
+        url = f'{self.MEOCLOUD_ENDPOINT}/Media/meocloud/{rpath}'
+        r = self.session.post(url=url)
+        return r
+
 
     @property
     def authorize(self):

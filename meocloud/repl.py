@@ -86,12 +86,12 @@ class MeoCloudRepl(cmd.Cmd):
         if len(args) == 0:
             print(self.cwd)
             return
-        print(f"chdir to {args}")
         os.chdir(args)
         self.cwd = os.getcwd()
+        print(f"Local dir: {os.getcwd()}")
 
     def help_lcd(self):
-        print("Changes the current directory")
+        print("Changes the current local directory")
 
     def do_rcd(self,args):
         if len(args) == 0:
@@ -100,20 +100,19 @@ class MeoCloudRepl(cmd.Cmd):
         if self.rcwd != '/' and args != '/':
             self.rcwd = self.rcwd + '/' + args
         elif args == '/':
-            print("Going to /")
             self.rcwd = '/'
-#        self.rcwd = self._rcwd_to_rpath(args)
+        print(f"Remote dir: {self.rcwd}")
 
     def help_rcd(self):
         print("Changes the current directory on the remote side")
 
     def do_rup(self,args):
-        #self.rcwd =  self.rcwd[0:self.rcwd.rfind('/')+1]
         last_slash = self.rcwd.rfind('/')
         if last_slash == -1:
             self.rcwd = '/'
         else:
             self.rcwd =  self.rcwd[0:last_slash]
+        print(f"Remote dir: {self.rcwd}")
     
     def help_rup(self):
         print("Goes one level up in the dirtree")
@@ -121,15 +120,14 @@ class MeoCloudRepl(cmd.Cmd):
     def do_lup(self,args):
         os.chdir(os.path.pardir)
         self.cwd = os.getcwd()
-        print(f"chdir to {self.cwd}")
+        print(f"Local dir: {os.getcwd()}")
 
     def help_lup(self):
         print("Change the local directory up one level")
 
     def do_get(self,args):
         r = self.meo.get_file(args)
-        #r = self.meo.get_file(self._rcwd_to_rpath(args))
-        print(f"Saving to {args}")
+        print(f"Saving to {self.cwd}/{args}")
         with open(args,'wb') as downloaded_file:
             downloaded_file.write(r.content)
             downloaded_file.close()
@@ -142,22 +140,48 @@ class MeoCloudRepl(cmd.Cmd):
             rpath = f"{self.rcwd}/{args}"
         else:
             rpath = args
+        print(f"Uploading {rpath}")
         r = self.meo.upload_data(rpath, open(args, 'rb').read())
-        #r = self.meo.upload_data(self._rcwd_to_rpath(args), open(args, 'rb').read())
         if r.status_code != 200:
             print(f"Something unexpected occurred: {r.status_code}")
             return
         json_pprint(r.json())
 
+    def do_cput(self,args):
+        rpath = args
+        CHUNK_SIZE = 4*1024*1024
+        print(f"Uploading {rpath}")
+        filesize = os.path.getsize(rpath)
+        f = open(rpath,'rb')
+        r = self.meo._chunk_upload(f.read(CHUNK_SIZE))
+        rj = r.json()
+        upload_id = rj['upload_id']
+        offset = int(rj['offset'])
+        while (offset < filesize):
+            r = self.meo._chunk_upload(f.read(CHUNK_SIZE),offset=offset,upload_id=upload_id)
+            print(r.status_code)
+            if r.status_code != 200 : break
+            rj = r.json()
+            upload_id = rj['upload_id']
+            offset = int(rj['offset'])
+            print(f"{upload_id}: {offset} <= {filesize}")
+        f.close()
+        print ("Upload finished!")
+        r = self.meo._chunk_upload_commit(os.path.basename(rpath),upload_id)
+        print(r)
+        print(r.json())
+
+    def help_cput(self):
+        print("Upload files in chunks, useful for big files (>150 MB)")
+
     def help_put(self):
-        print("Uploads a file")
+        r = print("Uploads a file")
 
     def complete_put(self, text, line, begidx, endidx):
         return [f for f in os.listdir(self.cwd) if f.startswith(text)]
 
     def _complete_remote(self,text,line,begidx, endidx):
         files = None
-        print(f"Current dir: {self.rcwd}")
         args = self.rcwd
         if args.startswith('/'):
             args = args[1:]
@@ -173,15 +197,17 @@ class MeoCloudRepl(cmd.Cmd):
         return self._complete_remote(text,line,begidx, endidx)
 
     def do_cat(self,args):
+        CHUNK_SIZE = 256
+        print(f"Showing the first {CHUNK_SIZE} of {args}:")
         with open(args,'r') as f:
-            print(f.read(1024))
+            print(f.read(CHUNK_SIZE))
             f.close()
 
     def help_cat(self):
         print("Shows the first 1024 bytes of a local file")
 
     def do_del(self,args):
-        #r = self.meo.delete_file(self._rcwd_to_rpath(args))
+        print(f"Deleting {args}")
         r = self.meo.delete_file(args)
         json_pprint(r.json())
 
@@ -213,7 +239,7 @@ class MeoCloudRepl(cmd.Cmd):
         print("Creates a new directory")
 
     def do_properties(self,args):
-        #r = self.meo.properties(self._rcwd_to_rpath(args))
+        print(f"Fetching metadata of {args}")
         r = self.meo.properties(args)
         json_pprint(r.json())
 
@@ -225,9 +251,10 @@ class MeoCloudRepl(cmd.Cmd):
 
 
     def do_rcat(self,args):
-        #r = self.meo.get_file(self._rcwd_to_rpath(args))
+        CHUNK_SIZE = 256
+        print(f"Showing the first {CHUNK_SIZE} of {args}")
         r = self.meo.get_file(args)
-        print(r.text[:256])
+        print(r.text[:CHUNK_SIZE])
 
     def help_rcat(self):
         print("Dumps the first 1024 bytes of a file")
@@ -235,6 +262,16 @@ class MeoCloudRepl(cmd.Cmd):
     def complete_rcat(self,text,line,begidx, endidx):
         return self._complete_remote(text,line,begidx, endidx)
 
+    def do_url(self,args):
+        r = self.meo.get_media_url(args)
+        rjurl = r.json()['url']
+        print(rjurl)
+    
+    def help_url(self,args):
+        print("Show the complete url to download directly a remote file")
+
+    def complete_url(self,text,line,begidx, endidx):
+        return self._complete_remote(text, line, begidx, endidx)
 
     def do_rdwnld(self,args):
         import time
@@ -264,7 +301,7 @@ class MeoCloudRepl(cmd.Cmd):
 
 def main():
     description = 'manages your meocloud service'
-    epilog = "With no arguments the repl is launched \n " + \
+    epilog = "With no arguments a REPL is launched \n " + \
      "The following commands are availabe as arguments:\n" + MeoCloudRepl.args_usage
     parser = argparse.ArgumentParser(description=description,
         epilog=epilog,
@@ -277,11 +314,11 @@ def main():
         args = parser.parse_args()
         command = args.command
         print(command)
-        allowed_commands = ['mls','rls','put','del','mkdir','get','md']
+        allowed_commands = ['mls','rls','put','del','mkdir','get','md','cput','url']
         repl = MeoCloudRepl()
         if  command not in allowed_commands:
             print(f"ERROR: '{command}' is not one of the valid commands:\n%s" % " ".join(allowed_commands) )
-            print(repl.args_usage())
+            print(repl.args_usage)
         if args.command_value is not None:
             command_value = args.command_value
         else: command_value = None
@@ -299,6 +336,8 @@ def main():
             repl.do_del(command_value)
         elif command == 'mkdir':
             repl.do_mkdir(command_value)
+        elif command == 'cput':
+            repl.do_cput(command_value)
   
 
 if __name__ == '__main__':
