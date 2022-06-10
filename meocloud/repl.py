@@ -1,9 +1,11 @@
-import os, sys
-import cmd
 import argparse
+import cmd
+import os
+import sys
 
 from .meoclient import *
 from .services import *
+
 
 class MeoCloudRepl(cmd.Cmd):
 
@@ -15,6 +17,7 @@ class MeoCloudRepl(cmd.Cmd):
     prompt = f'meocloud [{rcwd}]> '
     meo = get_meo_client()
     cwd = os.getcwd()
+    listdir_cache = dict()
 
     args_usage = \
     """ 
@@ -26,6 +29,10 @@ class MeoCloudRepl(cmd.Cmd):
         mkdir <dir>     creates the remote dir
         md <file>       metadata of remote file
     """        
+
+    def preloop(self) -> None:
+        self._refresh_listdir_cache()
+        return super().preloop()
 
     def _rcwd_to_rpath(self,path):
         rpath = f"{self.rcwd}/{path}"
@@ -52,6 +59,22 @@ class MeoCloudRepl(cmd.Cmd):
     def do_pwd(self,args):
         self.do_lcd(args)
 
+    def _refresh_listdir_cache(self):
+        if self.rcwd.startswith('/'):
+            cd = self.rcwd[1:]
+        else:
+            cd = self.rcwd
+
+        r = self.meo.get_list(cd)
+        if r.status_code != 200:
+            print(f"Something got wrong: status {r.status_code}")
+            return None
+        files = r.json()
+        self.listdir_cache[self.rcwd] = dict()
+        for item in files['contents']:
+            self.listdir_cache[self.rcwd][item['name']] = item
+        return True
+
 
     def do_mls(self,args):
         files = None
@@ -60,21 +83,20 @@ class MeoCloudRepl(cmd.Cmd):
             args = self.rcwd
         if args.startswith('/'):
             args = args[1:]
-        print("Listing %s"%args)
-        r = self.meo.get_list(args)
-        if r.status_code != 200:
-            print(f"Something got wrong: status {r.status_code}")
-            return
+        print(f"Listing %s :"%self.rcwd)
 
-        files = r.json()
-
-        for item in files['contents']:
+        # prints the file list from cache
+        for item in self.listdir_cache[self.rcwd].values():
             items_row = [str(item['bytes']),item['modified'],item['name']]
             if 'mime_type' in item.keys():
                 items_row.append(item['mime_type'])
+            elif 'is_dir' in item.keys() and item['is_dir'] == True:
+                items_row.append('<DIR>')
             else: items_row.append('')
             item_line = "{0[0]:<9}{0[1]:30.25}{0[3]:28}{0[2]}".format(items_row)
             print(item_line)
+        return
+
 
     def do_rls(self,args):
         self.do_mls(args)
@@ -94,13 +116,22 @@ class MeoCloudRepl(cmd.Cmd):
         print("Changes the current local directory")
 
     def do_rcd(self,args):
+        rcwd_before = self.rcwd
         if len(args) == 0:
             print(self.rcwd)
             return
+        if args == '..': 
+            self.do_rup(args)
+            return
         if self.rcwd != '/' and args != '/':
             self.rcwd = self.rcwd + '/' + args
-        elif args == '/':
-            self.rcwd = '/'
+        elif self.rcwd == '/':
+            if args != '/': self.rcwd = args
+            else: self.rcwd = '/'
+        
+        result = self._refresh_listdir_cache()
+        if result is None:
+            self.rcwd = rcwd_before
         print(f"Remote dir: {self.rcwd}")
 
     def help_rcd(self):
@@ -146,6 +177,7 @@ class MeoCloudRepl(cmd.Cmd):
             print(f"Something unexpected occurred: {r.status_code}")
             return
         json_pprint(r.json())
+        self._refresh_listdir_cache()
 
     def do_cput(self,args):
         rpath = args
@@ -170,28 +202,41 @@ class MeoCloudRepl(cmd.Cmd):
         r = self.meo._chunk_upload_commit(os.path.basename(rpath),upload_id)
         print(r)
         print(r.json())
+        self._refresh_listdir_cache()
 
     def help_cput(self):
         print("Upload files in chunks, useful for big files (>150 MB)")
 
     def help_put(self):
-        r = print("Uploads a file")
+        print("Uploads a file")
 
     def complete_put(self, text, line, begidx, endidx):
         return [f for f in os.listdir(self.cwd) if f.startswith(text)]
 
+    def complete_lcd(self, text, line, begidx, endidx):
+        return [f for f in os.listdir(self.cwd) if f.startswith(text) and os.path.isdir(f)]
+
+    def complete_rcd(self, text, line, begidx, endidx):
+        collect = []
+        for direntry in self.listdir_cache[self.rcwd].keys():
+            if self.listdir_cache[self.rcwd][direntry]['is_dir'] \
+                and direntry.startswith(text): 
+                    collect.append(direntry[1:])
+        return collect
+
+
     def _complete_remote(self,text,line,begidx, endidx):
         files = None
-        args = self.rcwd
-        if args.startswith('/'):
-            args = args[1:]
-        elif len(args)>1 : args = f"/{args}"
-        r = self.meo.get_list(args)
-        if r.status_code != 200:
-            print("Something got wrong!")
-            return
-        files = r.json()['contents']
-        return [f for f in map(lambda f:f['name'][1:],files) if f.startswith(text)]
+        # args = self.rcwd
+        # if args.startswith('/'):
+        #     args = args[1:]
+        # elif len(args)>1 : args = f"/{args}"
+        # r = self.meo.get_list(args)
+        # if r.status_code != 200:
+        #     print("Something got wrong!")
+        #     return
+        # files = r.json()['contents']
+        return [f for f in map(lambda f:f['name'][1:],self.listdir_cache[self.rcwd].values()) if f.startswith(text)]
 
     def complete_get(self,text,line,begidx, endidx):
         return self._complete_remote(text,line,begidx, endidx)
@@ -209,6 +254,7 @@ class MeoCloudRepl(cmd.Cmd):
     def do_del(self,args):
         print(f"Deleting {args}")
         r = self.meo.delete_file(args)
+        self._refresh_listdir_cache()
         json_pprint(r.json())
 
     def complete_del(self,text,line,begidx, endidx):
@@ -234,6 +280,7 @@ class MeoCloudRepl(cmd.Cmd):
         print(f"Creating {newpathdir}")
         r = self.meo.mkdir(newpathdir)
         json_pprint(r.json())
+        self._refresh_listdir_cache()
 
     def help_mkdir(self):
         print("Creates a new directory")
@@ -283,6 +330,7 @@ class MeoCloudRepl(cmd.Cmd):
         time.sleep(10)
         r = self.meo.pending_remote_download_status(job_id)
         print(r.json())
+        self._refresh_listdir_cache()
 
     def do_rdwnldq(self,job_id):
         r = self.meo.pending_remote_download_status(job_id)
@@ -322,6 +370,7 @@ def main():
         if args.command_value is not None:
             command_value = args.command_value
         else: command_value = None
+        repl._refresh_listdir_cache()
         if command in ['rls','mls']:
             if command_value is not None:
                 repl.do_mls(command_value)

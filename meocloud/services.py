@@ -103,6 +103,16 @@ class MeoCloud(object):
         r = self.session.post(url=url)
         return r
 
+    def get_cursor(self):
+        url = f'{self.MEOCLOUD_ENDPOINT}/LatestCursor'
+        r = self.session.get(url=url)
+        return r
+    
+    def get_delta(self,cursor):
+        url = f'{self.MEOCLOUD_ENDPOINT}/Delta'
+        r = self.session.post(url=url,data={'cursor':cursor})
+        return r
+
 
     @property
     def authorize(self):
