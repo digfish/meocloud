@@ -6,6 +6,7 @@ import requests
 from requests_oauthlib import OAuth1
 
 
+
 class MeoCloud(object):
     REQUEST_TOKEN = 'https://meocloud.pt/oauth/request_token'
     AUTHORIZE = 'https://meocloud.pt/oauth/authorize?oauth_token='
@@ -36,7 +37,7 @@ class MeoCloud(object):
     
     def get_file(self,file):
         url = f'{self.MEOCLOUD_CONTENT_ENDPOINT}/Files/meocloud/{file}'
-        r = self.session.get(url=url)
+        r = self.session.get(url=url,stream=True)
         return r
 
     def upload_file(self,lfile,rpath=''):

@@ -5,6 +5,8 @@ import sys
 
 from .meoclient import *
 from .services import *
+import tqdm
+
 
 
 class MeoCloudRepl(cmd.Cmd):
@@ -159,8 +161,17 @@ class MeoCloudRepl(cmd.Cmd):
     def do_get(self,args):
         r = self.meo.get_file(args)
         print(f"Saving to {self.cwd}/{args}")
+        totalsize = int(r.headers.get('content-length', 0))
+        chunk_size = int(totalsize / 10)  # 1 Kibibyte
+        readsofar = 0
         with open(args,'wb') as downloaded_file:
-            downloaded_file.write(r.content)
+            for data in r.iter_content(chunk_size):
+                readsofar += chunk_size
+                if readsofar > totalsize: readsofar = totalsize
+                percent = int(readsofar / totalsize * 100.0)
+                sys.stderr.write("\r{read}/{total} ({percent:3.0f}%)".format(read=readsofar,total=totalsize,
+                                                                              percent=percent))     
+                downloaded_file.write(data)
             downloaded_file.close()
 
     def help_get(self):
@@ -172,7 +183,7 @@ class MeoCloudRepl(cmd.Cmd):
         else:
             rpath = args
         print(f"Uploading {rpath}")
-        r = self.meo.upload_data(rpath, open(args, 'rb').read())
+        r = self.meo.upload_data(rpath,ChunkUploader (open(args, 'rb').read(),chunksize=1024*1024))
         if r.status_code != 200:
             print(f"Something unexpected occurred: {r.status_code}")
             return
@@ -345,6 +356,35 @@ class MeoCloudRepl(cmd.Cmd):
     def postcmd(self,stop,line):
         self.prompt = f'meocloud [{self.rcwd}]> '
         return super().postcmd(stop,line)
+
+class ChunkUploader(object):
+    def __init__(self, data_to_upload, blocks=10, chunksize=0):
+        self.data_to_upload = data_to_upload
+        if chunksize !=  0 :
+            self.chunksize = chunksize
+        else:
+            self.chunksize = int(len(data_to_upload) / blocks)
+        self.totalsize = len(data_to_upload)
+        self.readsofar = 0
+
+    def __iter__(self):
+            offset = 0
+            while True:
+                data = self.data_to_upload[offset:offset+self.chunksize]
+                if not data:
+                    sys.stderr.write("\n")
+                    break
+                self.readsofar += len(data)
+                if self.readsofar >= self.totalsize: self.readsofar = self.totalsize
+                percent = self.readsofar * 1e2 / self.totalsize
+                sys.stderr.write("\r{read}/{total}  ({percent:3.0f}%)".format(read=self.readsofar,total=self.totalsize,
+                                                                              percent=percent))
+                offset += self.chunksize
+                yield data
+
+    def __len__(self):
+        return self.totalsize
+
 
 
 def main():
